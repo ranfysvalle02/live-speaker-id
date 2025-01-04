@@ -69,6 +69,69 @@ self.encoder = EncoderClassifier.from_hparams(
 - **Embeddings**: Voice embeddings are high-dimensional vectors used to represent and compare voices.  
    
 ---  
+
+### Impact of Increasing Number of Speakers on Identification Accuracy  
+   
+As the number of speakers identified by the system grows, several factors affect the accuracy and reliability of speaker identification.  
+   
+#### Variability and Similarity Scores  
+   
+- **Increased Overlap in Voice Characteristics**: With more speakers, there's a higher chance that some will have similar voice characteristics. Factors like similar pitch, tone, accent, or speaking style can cause voice embeddings to be closer in the high-dimensional space.  
+   
+- **Higher Similarity Scores Between Different Speakers**: As a result of similar voice traits, the cosine similarity scores between different speakers' embeddings may increase. This means that different speakers might produce embeddings that are more similar to each other, leading to higher similarity scores.  
+   
+- **Challenges in Distinguishing Speakers**:  
+  - **Fixed Threshold Limitations**: The fixed similarity threshold (`self.THRESHOLD`) used to determine if a speaker matches a stored embedding may become less effective. Similarity scores may cluster together, making it difficult to separate speakers using a single threshold value.  
+  - **Potential for Misidentification**: Higher similarity scores between different speakers increase the risk of false positives (incorrectly identifying a speaker) and false negatives (failing to recognize a speaker).  
+   
+#### Computational Considerations  
+   
+- **More Comparisons per Segment**:  
+  - **Increased Computational Load**: The system must compare the current speaker's embedding against all stored embeddings, including the primary user and all previously identified speakers. As the number of speakers grows, the number of comparisons increases linearly.  
+  - **Impact on Processing Time**: More comparisons can lead to longer processing times for each speech segment, potentially affecting the system's real-time performance.  
+   
+- **Impact on Real-Time Performance**:  
+  - **Latency Issues**: The increased computational demand may introduce latency, causing delays in speaker identification and transcription outputs.  
+  - **Resource Utilization**: On systems with limited processing power, the additional computational load can strain resources, leading to decreased overall system performance.  
+   
+#### Practical Implications  
+   
+- **Identification Accuracy May Decrease**: With the addition of more speakers, the system may struggle to maintain high accuracy due to the increased likelihood of similar embeddings among different speakers.  
+   
+- **System Scalability**:  
+  - **Effective in Controlled Environments**: The system works best in settings with a limited and known set of speakers, such as small meetings or controlled group discussions.  
+  - **Challenges in Open Environments**: In public or dynamic environments with many speakers, the system may face difficulties in accurately distinguishing and tracking speakers.  
+   
+#### Mitigation Strategies  
+   
+- **Dynamic Threshold Adjustment**:  
+  - **Adaptive Thresholds**: Instead of a fixed threshold, implement adaptive thresholds based on the distribution of similarity scores. This approach can help accommodate variations in similarities due to additional speakers.  
+   
+- **Limit the Number of Tracked Speakers**:  
+  - **Focus on Key Speakers**: Configure the system to track and identify a finite set of important or frequently occurring speakers, which can reduce computational load and improve accuracy.  
+   
+- **Enhanced Algorithms**:  
+  - **Clustering Techniques**: Use clustering algorithms to group similar embeddings, reducing the number of comparisons by only comparing within relevant clusters.  
+  - **Machine Learning Classifiers**: Integrate more sophisticated machine learning models trained to distinguish between specific speakers, improving discrimination beyond simple cosine similarity.  
+  - **Dimensionality Reduction**: Apply techniques like Principal Component Analysis (PCA) to reduce the dimensionality of embeddings, potentially improving computational efficiency.  
+   
+- **User Feedback Mechanisms**:  
+  - **Interactive Corrections**: Implement a system where users can correct misidentifications, allowing the system to adjust embeddings or thresholds accordingly.  
+  - **Continuous Learning**: Enable the system to learn from new data over time, refining embeddings and improving accuracy with continued use.  
+   
+#### Summary  
+   
+As more speakers are added to the system:  
+   
+- **Variability Increases**: The diversity of voice characteristics grows, and the likelihood of speakers having similar vocal attributes rises.  
+- **Similarity Scores Become Less Distinct**: Embeddings for different speakers may yield higher cosine similarity scores, making it challenging to differentiate them using a fixed threshold.  
+- **Challenges in Accuracy and Performance**: Maintaining high identification accuracy becomes more difficult, and computational demands increase, potentially affecting real-time operation.  
+- **Need for Advanced Techniques**: To ensure the system remains effective, especially when tracking many speakers, more sophisticated methods and optimizations are necessary beyond basic cosine similarity comparisons.  
+   
+By understanding these challenges and implementing appropriate mitigation strategies, it's possible to enhance the system's scalability and maintain accuracy even as the number of speakers increases.
+
+---
+
    
 ## The `SpeakerIdentifier` Class  
    
