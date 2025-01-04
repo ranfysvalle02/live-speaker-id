@@ -70,6 +70,8 @@ self.encoder = EncoderClassifier.from_hparams(
 ---  
 
 ### Impact of Increasing Number of Speakers on Identification Accuracy  
+
+![](https://picovoice.ai/static/09e129c2edde6d3923213efc9db30a17/4a02d/how_speaker_identification_works.png)
    
 As the number of speakers identified by the system grows, several factors affect the accuracy and reliability of speaker identification.  
    
