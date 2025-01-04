@@ -6,9 +6,9 @@ This system is a real-time speaker identification and transcription tool that ca
 
 ---
 
-# Real-Time Speaker Identification and Transcription with Python  
+# Real-Time Speaker Identification and Transcription
 
-![](https://appliedmachinelearning.wordpress.com/wp-content/uploads/2017/11/speakerid.jpg)
+![](https://www.researchgate.net/publication/331012259/figure/fig1/AS:743559934251012@1554289911444/Speaker-Recognition-fundamental-tasks-Verification-and-Identification.jpg)
    
 Speaker identification and transcription are critical components in many modern applications, such as voice-controlled devices, teleconferencing tools, and surveillance systems. This post presents a comprehensive Python script that captures audio in real-time, identifies speakers, and transcribes speech using advanced models and libraries.  
    
