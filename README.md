@@ -1,6 +1,6 @@
 # live-speaker-id
 
-![](https://www.researchgate.net/publication/261872080/figure/fig1/AS:614211281485831@1523450789437/A-schematic-of-the-main-components-of-an-automatic-speaker-recognition-system-Speaker.png)
+![](https://www.researchgate.net/profile/Finnian-Kelly/publication/261872080/figure/fig1/AS:614211281485831@1523450789437/A-schematic-of-the-main-components-of-an-automatic-speaker-recognition-system-Speaker.png)
 
 This system is a real-time speaker identification and transcription tool that captures audio input, identifies different speakers, and transcribes their speech into text. By recording samples of the user's voice during an enrollment phase to create a unique voice embedding, it can distinguish between the user ("Me") and other speakers.
 
