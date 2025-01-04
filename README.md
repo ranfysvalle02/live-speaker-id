@@ -96,7 +96,7 @@ Key methods include:
 Install the required Python packages using `pip`:  
    
 ```bash  
-pip install numpy sounddevice webrtcvad vosk torch speechbrain  
+pip3 install numpy sounddevice webrtcvad vosk torch speechbrain  
 ```  
    
 Ensure you have [PyTorch](https://pytorch.org/get-started/locally/) installed with CUDA support if you have a compatible GPU.  
