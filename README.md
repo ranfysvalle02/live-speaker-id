@@ -1,4 +1,7 @@
 # live-speaker-id
+
+![](https://blog.kakaocdn.net/dn/bhFImS/btsIWeuTKuS/S7dyNd4GB7VSMrqUcnqeBk/img.png)
+
 This system is a real-time speaker identification and transcription tool that captures audio input, identifies different speakers, and transcribes their speech into text. By recording samples of the user's voice during an enrollment phase to create a unique voice embedding, it can distinguish between the user ("Me") and other speakers.
 
 ---
