@@ -9,9 +9,14 @@ import json
 from vosk import Model, KaldiRecognizer  
 import queue  
 import time  
+import logging  
   
 import torch  
 from speechbrain.pretrained import EncoderClassifier  
+  
+# Set up logging  
+logging.basicConfig(level=logging.INFO)  
+logger = logging.getLogger(__name__)  
   
 class SpeakerIdentifier:  
     """  
@@ -19,32 +24,43 @@ class SpeakerIdentifier:
     """  
   
     # Constants for easy tweaking  
-    MODEL_NAME = "models/vosk-model-small-en-us-0.15"   # Vosk model directory  
-    SAMPLE_RATE = 16000                          # Sample rate in Hz  
-    CHANNELS = 1                                 # Number of audio channels (mono)  
-    FRAME_DURATION_MS = 30                       # Frame size in milliseconds  
-    VAD_AGGRESSIVENESS = 2                       # VAD aggressiveness (0-3)  
-    THRESHOLD = 0.6                              # Similarity threshold for speaker identification  
-    MIN_SEGMENT_DURATION = 1.0                   # Minimum duration of a segment in seconds  
+    MODEL_NAME = "models/vosk-model-small-en-us-0.15"  # Vosk model directory  
+    CHANNELS = 1                                      # Number of audio channels (mono)  
+    FRAME_DURATION_MS = 30                            # Frame size in milliseconds  
+    VAD_AGGRESSIVENESS = 2                            # VAD aggressiveness (0-3)  
+    THRESHOLD = 0.6                                   # Similarity threshold for speaker identification  
+    MIN_SEGMENT_DURATION = 1.0                        # Minimum duration of a segment in seconds  
   
     def __init__(self):  
+        # Adjust sample rate based on the default input device  
+        try:  
+            default_input_device = sd.query_devices(kind='input')  
+            default_sample_rate = int(default_input_device['default_samplerate'])  
+            self.sample_rate = default_sample_rate if default_sample_rate else 16000  
+        except Exception as e:  
+            logger.error(f"Could not determine default sample rate: {e}")  
+            self.sample_rate = 16000  
+  
+        if self.sample_rate != 16000:  
+            logger.warning(f"Default sample rate is {self.sample_rate} Hz. Adjusting to match the microphone's capabilities.")  
+  
         # Initialize Vosk model  
         if not os.path.exists(self.MODEL_NAME):  
-            print(f"Vosk model '{self.MODEL_NAME}' not found. Please download and place it in the script directory.")  
+            logger.error(f"Vosk model '{self.MODEL_NAME}' not found. Please download and place it in the script directory.")  
             sys.exit(1)  
-        print("Loading Vosk model...")  
+        logger.info("Loading Vosk model...")  
         self.model = Model(self.MODEL_NAME)  
-        print("Vosk model loaded.")  
+        logger.info("Vosk model loaded.")  
   
         # Initialize the voice encoder using SpeechBrain's ECAPA-TDNN model  
-        print("Initializing voice encoder...")  
+        logger.info("Initializing voice encoder...")  
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  
         self.encoder = EncoderClassifier.from_hparams(  
             source="speechbrain/spkrec-ecapa-voxceleb",  
             savedir="models/spkrec-ecapa-voxceleb",  
             run_opts={"device": self.device},  
         )  
-        print("Voice encoder initialized.")  
+        logger.info("Voice encoder initialized.")  
   
         # Initialize WebRTC VAD  
         self.vad = webrtcvad.Vad(self.VAD_AGGRESSIVENESS)  
@@ -69,10 +85,10 @@ class SpeakerIdentifier:
         """  
         embeddings = []  
         for i in range(num_samples):  
-            print(f"Recording enrollment sample {i+1}/{num_samples} for {duration} seconds...")  
+            logger.info(f"Recording enrollment sample {i + 1}/{num_samples} for {duration} seconds...")  
             try:  
-                audio_data = sd.rec(int(duration * self.SAMPLE_RATE),  
-                                    samplerate=self.SAMPLE_RATE,  
+                audio_data = sd.rec(int(duration * self.sample_rate),  
+                                    samplerate=self.sample_rate,  
                                     channels=self.CHANNELS,  
                                     dtype='int16')  
                 sd.wait()  
@@ -83,27 +99,31 @@ class SpeakerIdentifier:
                 embedding = self.create_embedding(voiced_audio)  
                 embeddings.append(embedding)  
             except Exception as e:  
-                print(f"Error during enrollment recording: {e}")  
+                logger.error(f"Error during enrollment recording: {e}")  
                 sys.exit(1)  
-        # Average the embeddings  
-        self.my_embedding = np.mean(embeddings, axis=0)  
-        # Normalize the averaged embedding  
-        self.my_embedding = self.my_embedding / np.linalg.norm(self.my_embedding)  
-        print("Averaged enrollment embedding created.")  
+        if embeddings:  
+            # Average the embeddings  
+            self.my_embedding = np.mean(embeddings, axis=0)  
+            # Normalize the averaged embedding  
+            self.my_embedding = self.my_embedding / np.linalg.norm(self.my_embedding)  
+            logger.info("Averaged enrollment embedding created.")  
+        else:  
+            logger.error("No embeddings were created during enrollment.")  
+            sys.exit(1)  
   
     def extract_voiced_audio(self, audio_data):  
         """  
         Extracts voiced frames from the audio data using VAD.  
         """  
-        frame_duration = int(self.FRAME_DURATION_MS / 1000 * self.SAMPLE_RATE)  # Frame duration in samples  
-        frames = [audio_data[i:i + frame_duration] for i in range(0, len(audio_data), frame_duration)]  
+        frame_size = int(self.FRAME_DURATION_MS / 1000 * self.sample_rate)  # Frame size in samples  
+        frames = [audio_data[i:i + frame_size] for i in range(0, len(audio_data), frame_size)]  
         voiced_frames = []  
         for frame in frames:  
-            if len(frame) < frame_duration:  
-                # Pad the frame if it's shorter than the expected frame duration  
-                frame = np.pad(frame, (0, frame_duration - len(frame)), mode='constant')  
+            if len(frame) < frame_size:  
+                # Pad the frame if it's shorter than the expected frame size  
+                frame = np.pad(frame, (0, frame_size - len(frame)), mode='constant')  
             frame_bytes = frame.tobytes()  
-            is_speech = self.vad.is_speech(frame_bytes, self.SAMPLE_RATE)  
+            is_speech = self.vad.is_speech(frame_bytes, self.sample_rate)  
             if is_speech:  
                 voiced_frames.extend(frame)  
         voiced_audio = np.array(voiced_frames, dtype=np.int16)  
@@ -114,7 +134,7 @@ class SpeakerIdentifier:
         Creates a voice embedding from audio data using SpeechBrain's encoder.  
         """  
         # Check if the audio data is long enough  
-        if len(audio_data) < self.SAMPLE_RATE * self.MIN_SEGMENT_DURATION:  
+        if len(audio_data) < self.sample_rate * self.MIN_SEGMENT_DURATION:  
             raise ValueError("Audio segment is too short for embedding.")  
   
         # Convert audio data to float32 numpy array and normalize  
@@ -149,7 +169,7 @@ class SpeakerIdentifier:
             except queue.Empty:  
                 continue  
   
-            is_speech = self.vad.is_speech(frame, self.SAMPLE_RATE)  
+            is_speech = self.vad.is_speech(frame, self.sample_rate)  
             current_time = time.time()  
   
             if not triggered:  
@@ -174,6 +194,11 @@ class SpeakerIdentifier:
                     voiced_frames = []  
                 elif len(ring_buffer) > num_padding_frames:  
                     ring_buffer.pop(0)  
+  
+        # Process any remaining frames  
+        if voiced_frames:  
+            end_time = time.time()  
+            self.process_segment(voiced_frames, start_time, end_time)  
   
     def process_segment(self, frames, start_time, end_time):  
         """  
@@ -201,7 +226,7 @@ class SpeakerIdentifier:
             similarity_to_me = self.compare_embeddings(self.my_embedding, segment_embedding)  
   
             # Log the similarity score  
-            print(f"Similarity to 'Me': {similarity_to_me:.4f}")  
+            logger.info(f"Similarity to 'Me': {similarity_to_me:.4f}")  
   
             if similarity_to_me >= self.THRESHOLD:  
                 speaker_label = "Me"  
@@ -211,7 +236,7 @@ class SpeakerIdentifier:
                 for speaker_id, embedding in self.other_speakers.items():  
                     similarity = self.compare_embeddings(embedding, segment_embedding)  
                     # Log the similarity score  
-                    print(f"Similarity to Speaker {speaker_id}: {similarity:.4f}")  
+                    logger.info(f"Similarity to Speaker {speaker_id}: {similarity:.4f}")  
                     if similarity >= self.THRESHOLD:  
                         speaker_label = f"Speaker {speaker_id}"  
                         found = True  
@@ -220,10 +245,10 @@ class SpeakerIdentifier:
                     # Assign new speaker ID  
                     speaker_label = f"Speaker {self.next_speaker_id}"  
                     self.other_speakers[self.next_speaker_id] = segment_embedding  
-                    print(f"Assigned new speaker ID: {self.next_speaker_id}")  
+                    logger.info(f"Assigned new speaker ID: {self.next_speaker_id}")  
                     self.next_speaker_id += 1  
-        except Exception as e:  
-            print(f"Error during speaker identification: {e}")  
+        except ValueError as e:  
+            logger.error(f"Error during speaker identification: {e}")  
             speaker_label = "Unknown"  
   
         # Transcription  
@@ -234,7 +259,7 @@ class SpeakerIdentifier:
         relative_end_time = end_time - self.recording_start_time  
         start_td = str(timedelta(seconds=int(relative_start_time)))  
         end_td = str(timedelta(seconds=int(relative_end_time)))  
-        print(f"[{start_td} - {end_td}] [{speaker_label}] {transcript}")  
+        logger.info(f"[{start_td} - {end_td}] [{speaker_label}] {transcript}")  
   
     def compare_embeddings(self, embedding1, embedding2):  
         """  
@@ -252,7 +277,7 @@ class SpeakerIdentifier:
         """  
         Transcribes audio data using Vosk.  
         """  
-        rec = KaldiRecognizer(self.model, self.SAMPLE_RATE)  
+        rec = KaldiRecognizer(self.model, self.sample_rate)  
         rec.SetWords(True)  
   
         audio_bytes = audio_data.tobytes()  
@@ -267,7 +292,7 @@ class SpeakerIdentifier:
         Callback function for real-time audio processing.  
         """  
         if status:  
-            print(f"Audio status: {status}", file=sys.stderr)  
+            logger.warning(f"Audio status: {status}")  
   
         # Convert audio input to bytes and put into the queue  
         self.audio_queue.put(indata.tobytes())  
@@ -277,7 +302,7 @@ class SpeakerIdentifier:
         Starts the real-time audio stream and voice activity detection.  
         """  
         self.running = True  
-        print("Starting real-time processing. Press Ctrl+C to stop.")  
+        logger.info("Starting real-time processing. Press Ctrl+C to stop.")  
   
         # Start VAD collector in a separate thread  
         vad_thread = threading.Thread(target=self.vad_collector)  
@@ -285,25 +310,38 @@ class SpeakerIdentifier:
         vad_thread.start()  
   
         # Start audio stream  
-        with sd.InputStream(  
-            samplerate=self.SAMPLE_RATE,  
-            channels=self.CHANNELS,  
-            dtype='int16',  
-            blocksize=int(self.SAMPLE_RATE * (self.FRAME_DURATION_MS / 1000.0)),  
-            callback=self.audio_callback  
-        ):  
-            try:  
-                while True:  
-                    time.sleep(0.1)  
-            except KeyboardInterrupt:  
-                print("\nStopping...")  
-                self.running = False  
-                vad_thread.join()  
+        try:  
+            with sd.InputStream(  
+                samplerate=self.sample_rate,  
+                channels=self.CHANNELS,  
+                dtype='int16',  
+                blocksize=int(self.sample_rate * (self.FRAME_DURATION_MS / 1000.0)),  
+                callback=self.audio_callback  
+            ):  
+                try:  
+                    while self.running:  
+                        time.sleep(0.1)  
+                except KeyboardInterrupt:  
+                    logger.info("Stopping...")  
+                    self.running = False  
+        except Exception as e:  
+            logger.error(f"Error during audio streaming: {e}")  
+            self.running = False  
+  
+        # Wait for the audio queue to empty  
+        while not self.audio_queue.empty():  
+            time.sleep(0.1)  
+        vad_thread.join()  
   
 def main():  
     speaker_id = SpeakerIdentifier()  
-    speaker_id.record_enrollment(num_samples=3, duration=5)  
-    speaker_id.start_listening()  
+    try:  
+        speaker_id.record_enrollment(num_samples=3, duration=5)  
+        speaker_id.start_listening()  
+    except KeyboardInterrupt:  
+        logger.info("Interrupted by user.")  
+    except Exception as e:  
+        logger.error(f"An error occurred: {e}")  
   
 if __name__ == "__main__":  
     main()  
