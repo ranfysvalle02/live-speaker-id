@@ -7,23 +7,6 @@ This system is a real-time speaker identification and transcription tool that ca
    
 In the realm of speech processing, real-time speaker identification and transcription have vast applications, from virtual assistants to security systems. This blog post delves into a Python implementation that leverages state-of-the-art speech recognition and speaker identification models to perform these tasks in real-time.  
    
-## Table of Contents  
-   
-1. [Introduction](#introduction)  
-2. [Prerequisites](#prerequisites)  
-3. [Overview of the Implementation](#overview-of-the-implementation)  
-4. [Key Components](#key-components)  
-   - [Voice Activity Detection (VAD)](#voice-activity-detection-vad)  
-   - [Speech Recognition with Vosk](#speech-recognition-with-vosk)  
-   - [Speaker Embeddings with SpeechBrain](#speaker-embeddings-with-speechbrain)  
-5. [The `SpeakerIdentifier` Class](#the-speakeridentifier-class)  
-6. [Setting Up the Environment](#setting-up-the-environment)  
-   - [Installing Dependencies](#installing-dependencies)  
-   - [Downloading Models](#downloading-models)  
-7. [Running the Script](#running-the-script)  
-8. [Conclusion](#conclusion)  
-9. [References](#references)  
-   
 ---  
    
 ## Introduction  
@@ -34,16 +17,6 @@ The script performs the following tasks:
    
 - **Enrollment**: Records samples of the primary user's voice to create an averaged voice embedding.  
 - **Real-time Processing**: Captures audio input, detects speech segments, identifies the speaker, and transcribes the speech.  
-   
----  
-   
-## Prerequisites  
-   
-Before diving into the code, ensure you have:  
-   
-- Basic knowledge of Python programming.  
-- Understanding of speech recognition and speaker identification concepts.  
-- A system with a microphone to capture audio input.  
    
 ---  
    
@@ -103,6 +76,7 @@ The `SpeakerIdentifier` class encapsulates the functionality for enrollment, rea
    
 Key methods include:  
    
+- **`__init__`**: Initializes models, audio settings, and parameters.  
 - **`record_enrollment`**: Records samples of the user's voice for enrollment.  
 - **`extract_voiced_audio`**: Extracts voiced frames from audio data using VAD.  
 - **`create_embedding`**: Creates voice embeddings from audio data.  
